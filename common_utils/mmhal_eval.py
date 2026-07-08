@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""
+MMHalBench — LLM-based evaluation (vLLM / OpenAI-compatible API).
+Shared by all models. No model-specific dependencies.
+
+Usage:
+    from common_utils.mmhal_eval import mmhalbench_eval
+    mmhalbench_eval("output.json", "path/to/model", "127.0.0.1:8000")
+"""
+
+import json, time
+from tqdm import tqdm
+import requests
+
+TEMPLATE = '''Please act as an impartial and objective judge and evaluate the quality of the response provided by a Large Multimodal Model (LMM) to the user question. Your evaluation should be mainly based on whether the response is informative, and whether the response contains any hallucination. Hallucination, in this context, refers to a situation where the LMM generates a response that includes information not present or implied in the image or previous conversation. A hallucination could be a false claim about an object, action, emotion, or any other detail that is not grounded in the image.
+
+For clarity, consider these examples:
+
+### Example 1:
+- Image Contents: Lynx, Cat
+- Question: How many cats can you see in this image?
+- Standard Human-Generated Answer: There are two cats visible in the image.
+- LMM Response to Evaluate: There is one cat in the image.
+- Analysis: The LMM's response is false because it claims there is only one cat in the image, when in fact there are two.
+- Hallucination: Yes.
+
+### Example 2:
+- Image Contents: Tree, Plant, Panda, Animal
+- Question: What can you see from this photo?
+- Standard Human-Generated Answer: In this photo we can see branches. We can see a panda on a branch. The background is blurry.
+- LMM Response to Evaluate: In the photo, I can see a large black and white panda sitting on a tree branch. The image captures the panda's unique appearance and its natural habitat, showcasing the beauty and rarity of these animals.
+- Analysis: The LMM's response is not false because it does not make any false claims about the image contents. For example, it does not claim that the panda is eating bamboo.
+- Hallucination: No.
+
+### Example 3:
+- Image Contents: Fashion accessory, Mammal, Dog, Umbrella
+- Question: Describe this image in details.
+- Standard Human-Generated Answer: In this picture I can see a dog laying under a yellow umbrella on a beach, and there is a rope on the right side. In the background I can see few persons talking or lying. At the top of the image, I can see the blue and clear sky.
+- LMM Response to Evaluate: The image features a brown dog laying on the sand at the beach, underneath a yellow umbrella. The dog is positioned near the water, and there are people in the background. The beach is sandy, and the sun is shining, creating a pleasant atmosphere. The dog is enjoying the shade provided by the umbrella, which is a common way to protect pets from the sun's harmful rays. The presence of people in the background suggests that the beach is a popular spot for leisure activities, such as sunbathing, swimming, and relaxing.
+- Analysis: The LMM's response is false because it claims that the dog is positioned near the water, but there is no water in the image.
+- Hallucination: Yes.
+
+### Example 4:
+- Image Contents: Clothing, Luggage and bags, Man, Building, Woman, Person
+- Question: Where is this photo taken?
+- Standard Human-Generated Answer: From the slogan "Welcome to Houston, Texas", we can infer that this photo is taken at an airport in Houston, Texas.
+- LMM Response to Evaluate: This photo is taken at an airport, specifically at the entrance of a terminal. However, the specific location of this airport cannot be determined from the image.
+- Analysis: Although the LMM's response does not explicitly mention the location "Houston, Texas" and does not perfectly answer the question, it makes no false claims about the image contents. Therefore, this response is not considered hallucination. It is OK if the LMM fails to directly answer the question, expresses uncertainty, or cannot include all the objects or details in the human-generated answer.
+- Hallucination: No.
+
+### Example 5:
+- Image Contents: Tree, Tower
+- Question: What environmental concerns are involved in this photo?
+- Standard Human-Generated Answer: This photo shows a smokestack emitting smoke. It may cause severe air pollution which threatens human health.
+- LMM Response to Evaluate: In the photo, there are several environmental concerns related to the smokestack emitting smoke. The smoke from the smokestack is a byproduct of industrial processes, which can contribute to air pollution, climate change, and negative impacts on human health. The smoke contains harmful pollutants, such as particulate matter, sulfur dioxide, nitrogen oxides, and carbon monoxide, which can lead to respiratory problems, heart disease, and other health issues. Additionally, the smoke contributes to the greenhouse effect, which can lead to global warming and climate change. The smokestack's emissions also affect the environment, as they can harm wildlife, vegetation, and ecosystems. Therefore, it is essential to address these environmental concerns by implementing measures to reduce emissions and promote sustainable practices in industrial processes.
+- Analysis: Although the LMM's response is significantly longer than the standard human-generated answer, it does not contain any false claims about the image contents. Instead, it provides additional general information about the environmental concerns, which can be inferred from the smoke emission. Such detailed analysis or reasoning should be considered as a positive aspect, as long as it contains no false claims.
+- Hallucination: No.
+
+With these examples in mind, please help me evaluate whether the response by the LMM is informative, and whether hallucination exists in it, based on the comparison between the LMM's response and the factual information provided in the image contents, question, and the standard human-generated answer below.
+
+Please note that the standard human-generated answer may only contain factual information but may not give a detailed analysis. Also, the standard human-generated answer may not be completely comprehensive in describing all the objects and their attributes, so please be a bit more cautious during evalutation. LMM's detailed analysis or reasoning should be encouraged.
+
+To evaluate the LMM responses, first, begin your evaluation by providing a short explanation. Second, after providing your explanation, you must rate the response by choosing from the following options:
+- Rating: 6, very informative with good analysis or reasoning, no hallucination
+- Rating: 5, very informative, no hallucination
+- Rating: 4, somewhat informative, no hallucination
+- Rating: 3, not informative, no hallucination
+- Rating: 2, very informative, with hallucination
+- Rating: 1, somewhat informative, with hallucination
+- Rating: 0, not informative, with hallucination
+
+### Image Contents
+{}
+
+### Question
+{}
+
+### Standard Human-Generated Answer
+{}
+
+### LMM Response to Evaluate
+{}'''
+
+
+
+def mmhalbench_eval(file: str, model: str, ip: str, evaluation: str = None):
+    """Run MMHalBench LLM evaluation on saved inference outputs."""
+    with open(file) as f:
+        records = json.load(f)
+
+    assert len(records) == 96, f"Expected 96 records, got {len(records)}"
+
+    responses = []
+    for i, record in tqdm(enumerate(records), total=len(records), desc="  MMHal Eval"):
+        image_content = ', '.join(record['image_content'])
+        prompt = TEMPLATE.format(image_content, record['question'],
+                                 record['gt_answer'], record['model_answer'])
+
+        response = None
+        while response is None:
+            try:
+                payload = json.dumps({
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 512,
+                    "temperature": 0.0,
+                })
+                url = f"http://{ip}/v1/chat/completions"
+                resp = requests.post(url, headers={"Content-Type": "application/json"},
+                                     data=payload, timeout=120)
+                response = resp
+            except Exception as e:
+                print(f"  Retry ({e})...")
+                time.sleep(10)
+
+        data = json.loads(response.text)
+        text = data["choices"][0]["message"]["content"] or ""
+        if not text:
+            text = data["choices"][0]["message"].get("reasoning_content", "")
+        responses.append(text.strip())
+        time.sleep(0.5)
+
+    if evaluation is not None:
+        with open(evaluation, 'w') as f:
+            json.dump(responses, f, indent=2)
+
+    # Score per sample
+    scores = []
+    for resp in responses:
+        found = []
+        for s in range(7):
+            if f'rating: {s}' in resp.lower():
+                found.append(s)
+        scores.append(found[0] if len(found) == 1 else -1)
+
+    valid = [s for s in scores if s >= 0]
+    avg = sum(valid) / len(valid) if valid else 0
+
+    # Hallucination rate: rating <= 1 means hallucinated
+    hallucinated = sum(1 for s in scores if 0 <= s <= 1)
+    hall_rate = round(hallucinated / len(records) * 100, 2) if records else 0
+
+    # Per question_type breakdown — map internal keys to display names
+    QT_MAP = {
+        "attribute":   "Object Attribute",
+        "adversarial": "Adversarial Object",
+        "comparison":  "Comparison",
+        "counting":    "Counting",
+        "relation":    "Spatial Relation",
+        "environment": "Environment",
+        "holistic":    "Holistic Description",
+        "other":       "Other",
+    }
+    QT_ORDER = [
+        "Object Attribute", "Adversarial Object", "Comparison", "Counting",
+        "Spatial Relation", "Environment", "Holistic Description", "Other",
+    ]
+
+    type_scores = {}
+    for i, record in enumerate(records):
+        qt = record.get("question_type", "other")
+        display = QT_MAP.get(qt, qt)
+        if scores[i] >= 0:
+            type_scores.setdefault(display, []).append(scores[i])
+
+    type_breakdown = {}
+    for qt_display in QT_ORDER:
+        ss = type_scores.get(qt_display, [])
+        type_breakdown[qt_display] = {
+            "score": round(sum(ss) / len(ss), 2) if ss else 0,
+            "count": len(ss),
+        }
+
+    results = {
+        "Average score": round(avg, 2),
+        "Hallucination rate": hall_rate,
+        "valid_ratings": len(valid),
+        "total": len(scores),
+        "evaluation": evaluation,
+        **{k: round(v["score"], 2) for k, v in type_breakdown.items()},
+    }
+    print(f"  Average score: {avg:.2f}  Hallucination rate: {hall_rate}%  ({len(valid)}/{len(scores)} valid)")
+    for qt_display in QT_ORDER:
+        info = type_breakdown.get(qt_display, {"score": 0, "count": 0})
+        print(f"    {qt_display}: {info['score']:.2f}  ({info['count']} samples)")
+    return results

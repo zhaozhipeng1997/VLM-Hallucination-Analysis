@@ -1,0 +1,13 @@
+vision_token_length: 256
+pope:
+  do_sample: True
+  temperature: 1.0
+  num_beams: 1
+  max_new_tokens: 2
+  intervention: true   
+mmmu:
+  do_sample: True
+  temperature: 1.0
+  num_beams: 1
+  max_new_tokens: 1024
+  intervention: true  

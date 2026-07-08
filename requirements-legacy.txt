@@ -1,0 +1,23 @@
+# Project — Legacy environment requirements (LLaVA 1.5, InstructBLIP)
+# Install: conda create -n env-legacy python=3.10 -y && conda activate env-legacy && pip install -r requirements-legacy.txt
+
+transformers==4.51.1
+torch>=2.1.0,<2.5.0
+accelerate>=0.30.0
+pillow>=10.0.0
+numpy>=1.26.0
+tqdm>=4.65.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+scikit-learn>=1.5.0
+scipy>=1.13.0
+pycocotools>=2.0.10
+pycocoevalcap>=1.2
+pandas>=2.2.0
+pyyaml>=6.0
+einops>=0.8.0
+sentencepiece>=0.2.0
+bitsandbytes>=0.43.0
+
+# Flash attention (optional, for speed)
+# flash-attn>=2.7.0
