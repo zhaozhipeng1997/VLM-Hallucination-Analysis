@@ -41,7 +41,7 @@ COCO2014/
 
 ### Multi-Task Prompts (5 levels of increasing constraint)
 
-Used for Table 3 in the paper (N = 100 COCO images $\times$ 5 tasks = 1,500 image--task pairs):
+Used in the paper (N = 1000 COCO images $\times$ 5 tasks = 5,000 image--task pairs):
 
 | Level | Task | Prompt Template |
 | --- | --- | --- |
@@ -158,7 +158,7 @@ $DATA_ROOT/
 
 All commands are run from the repository root directory. All scripts accept `--help` for detailed argument listings.
 
-### Step 1: Encoding--Arbitration Decomposition (Primary Taxonomy ---  Table 1)
+### Step 1: Encoding--Arbitration Decomposition (Primary Taxonomy)
 
 The core experiment. Runs on 1,000 COCO images per model. Produces the three-way split (encoding failure / arbitration failure / grounded) for each architecture.
 
@@ -186,7 +186,7 @@ python mechanistic_analysis/run_attribution.py \
 
 Output: `results/attribution_v2/{model}/encoding_arbitration/encoding_arbitration_summary.json`
 
-### Step 2: Gradient vs. Causal Patching Benchmark (513$\times$ Speedup Validation)
+### Step 2: Gradient vs. Causal Patching Benchmark (513 $\times$ Speedup Validation)
 
 Benchmarks gradient-based attribution against counterfactual restoration patching (the causal gold standard). Produces Spearman $\rho$ and top-k coverage metrics.
 
@@ -222,7 +222,7 @@ Four sub-experiments addressing fundamental evaluation concerns:
 python mechanistic_analysis/revision_experiments.py \
     --experiment all \
     --model llava-1.5 \
-    --num_samples 100
+    --num_samples 1000
 
 # Or individually:
 python mechanistic_analysis/revision_experiments.py --experiment p0 --model llava-1.5
@@ -269,9 +269,9 @@ python mechanistic_analysis/r3_experiments.py \
     --num_images 500
 ```
 
-### Step 7: Multi-Task Continuous Metrics (Table 3, Figure 5)
+### Step 7: Multi-Task Continuous Metrics
 
-Runs 5 prompt types across 3 models on the same 100 COCO images (1,500 image--task pairs).
+Runs 5 prompt types across 3 models on the same 1000 COCO images (5,000 image--task pairs).
 
 ```bash
 python mechanistic_analysis/multi_task_encoding.py \
