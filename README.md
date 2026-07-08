@@ -246,7 +246,7 @@ Addressing reviewer concerns about signal verification and ablation methodology:
 python mechanistic_analysis/r2_experiments.py \
     --experiment all \
     --model llava-1.5 \
-    --num_images 50
+    --num_images 500
 ```
 
 ### Step 6: R3 Experiments (E1--E5)
@@ -266,7 +266,7 @@ Additional experiments with fine-grained causal analysis:
 python mechanistic_analysis/r3_experiments.py \
     --experiment all \
     --model llava-1.5 \
-    --num_images 50
+    --num_images 500
 ```
 
 ### Step 7: Multi-Task Continuous Metrics (Table 3, Figure 5)
@@ -276,7 +276,7 @@ Runs 5 prompt types across 3 models on the same 100 COCO images (1,500 image--ta
 ```bash
 python mechanistic_analysis/multi_task_encoding.py \
     --model llava-1.5 \
-    --num_samples 100 \
+    --num_samples 1000 \
     --seed 42
 ```
 
