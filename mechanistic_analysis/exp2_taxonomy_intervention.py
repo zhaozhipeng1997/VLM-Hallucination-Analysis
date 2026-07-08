@@ -37,7 +37,7 @@ from config import (
 )
 from mechanistic_analysis.run_attribution import load_model_and_generator
 
-OUTPUT_DIR = REPO_ROOT / "results" / "paper4_revision" / "taxonomy_intervention"
+OUTPUT_DIR = REPO_ROOT / "results" / "revision" / "taxonomy_intervention"
 FIG_DIR = OUTPUT_DIR / "figures"
 
 MODELS = {
