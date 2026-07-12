@@ -35,7 +35,7 @@ Usage:
 Outputs:
     results/attribution_benchmark/llava-1.5/
         patching_vs_attribution.json       — Full results
-        head_comparison.tex                 — LaTeX table for paper
+        head_comparison.tex                 — LaTeX table
 """
 
 import argparse
@@ -331,7 +331,7 @@ def measure_causal_patching_effects(model, processor, pil_image, prompt,
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  Activation-difference head attribution (our method)
+#  Activation-difference head attribution
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -339,7 +339,7 @@ def compute_activation_difference_scores(model, processor, pil_image, prompt,
                                           num_layers=32):
     """Compute per-head activation differences between factual and counterfactual.
 
-    This is the core metric used in our paper's dynamic circuit discovery:
+    Per-head activation difference metric for dynamic circuit discovery:
     per_head_delta(l, h) = ||factual_head(l,h) - counterfactual_head(l,h)||₂
 
     Returns:

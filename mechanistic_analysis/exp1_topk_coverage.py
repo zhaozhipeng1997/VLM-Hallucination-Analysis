@@ -3,8 +3,7 @@
 Experiment 1: Top-k Causal Coverage Analysis
 =============================================
 Quantify how much of the true causal effect is captured by gradient-based
-attribution's top-k heads. Addresses the reviewer's key concern about the
-moderate Spearman ρ = 0.531.
+attribution's top-k heads.
 
 Key metrics:
   1. Cumulative KL coverage: top-k gradient heads capture X% of total causal KL
@@ -16,8 +15,8 @@ Input:  results/attribution_benchmark/llava-1.5/patching_vs_attribution.json
         (already contains activation-difference rankings and causal patching KL
          for 40 evaluated heads across N=1,000 images)
 
-Output: results/revision/topk_coverage/topk_coverage.json
-        results/revision/topk_coverage/figures/topk_coverage.pdf
+Output: results/supplementary/topk_coverage/topk_coverage.json
+        results/supplementary/topk_coverage/figures/topk_coverage.pdf
 
 No GPU required — pure analysis of cached data.
 """
@@ -38,7 +37,7 @@ from scipy import stats
 plt.rcParams['font.family'] = 'sans-serif'
 plt.rcParams['mathtext.fontset'] = 'stix'
 
-OUTPUT_DIR = REPO_ROOT / "results" / "revision" / "topk_coverage"
+OUTPUT_DIR = REPO_ROOT / "results" / "supplementary" / "topk_coverage"
 FIG_DIR = OUTPUT_DIR / "figures"
 
 ENCODING_CUTOFF = 8  # LLaVA-1.5: layers 0-7 = encoding, 8-31 = arbitration

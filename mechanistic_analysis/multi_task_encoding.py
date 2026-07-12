@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 """
-Experiment P3: Multi-Task Encoding/Arbitration — Continuous Metrics (v3)
+Multi-Task Encoding/Arbitration — Continuous Metrics
 =========================================================================
-核心问题：仲裁失败到底是架构瓶颈，还是 COCO captioning 任务造成的伪影？
+Core question: Is arbitration failure an architectural bottleneck, or an artifact
+of the COCO captioning task?
 
-v3 策略：不做 token 分类（因为长/短回答的激活分布天然不可比），
-        而是输出跨任务的连续指标对比：
-          - mean Δt  (logP_factual - logP_counterfactual，主信号)
-          - mean encoding strength (视觉编码强度)
-          - mean arbitration ratio (仲裁比例)
-        并用已完成的 captioning 1000-sample 分类结果作参考锚点。
+v3 strategy: Instead of token classification (since activation distributions
+are not naturally comparable across short/long answers), output continuous
+cross-task metrics:
+  - mean Δt  (logP_factual - logP_counterfactual, primary signal)
+  - mean encoding strength
+  - mean arbitration ratio
+Using completed captioning 1000-sample classification results as a reference anchor.
 
-跨 5 种约束强度的 prompt：
-  1. captioning    — "Describe this image fully." (完全开放式)
-  2. vqa_describe  — "What do you see in this image?" (描述型 VQA)
-  3. vqa_factual   — "List all objects in this image." (事实型 VQA)
-  4. vqa_explain   — "Is this outdoor? Explain why." (解释型，需要长回答)
-  5. yesno         — "Is this outdoor? Answer yes or no." (是/否，最短)
+Across 5 prompt constraint levels:
+  1. captioning    — "Describe this image fully." (fully open-ended)
+  2. vqa_describe  — "What do you see in this image?" (descriptive VQA)
+  3. vqa_factual   — "List all objects in this image." (factual VQA)
+  4. vqa_explain   — "Is this outdoor? Explain why." (explanatory, long answer)
+  5. yesno         — "Is this outdoor? Answer yes or no." (yes/no, shortest)
 
 Usage:
     python mechanistic_analysis/multi_task_encoding.py --model llava-1.5 --num_samples 50
@@ -94,7 +96,7 @@ TASK_TYPES = {
     },
 }
 
-# Captioning baseline from existing 1000-sample results (paper Table 2)
+# Captioning baseline from existing 1000-sample results
 # These are per-run-relative-threshold classification percentages
 CAPTIONING_BASELINE = {
     "llava-1.5":   {"enc": 13.9, "arb": 86.0, "grd":  0.1},

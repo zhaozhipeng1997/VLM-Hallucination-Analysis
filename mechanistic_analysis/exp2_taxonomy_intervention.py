@@ -37,7 +37,7 @@ from config import (
 )
 from mechanistic_analysis.run_attribution import load_model_and_generator
 
-OUTPUT_DIR = REPO_ROOT / "results" / "revision" / "taxonomy_intervention"
+OUTPUT_DIR = REPO_ROOT / "results" / "supplementary" / "taxonomy_intervention"
 FIG_DIR = OUTPUT_DIR / "figures"
 
 MODELS = {
@@ -49,7 +49,7 @@ MODELS = {
                      "enc_cutoff": 9, "arb_dominant": False},
 }
 
-# Per-model failure rates (from paper Table 1)
+# Per-model failure rates
 TAXONOMY_RATES = {
     "llava-1.5":   {"enc": 0.139, "arb": 0.860, "grd": 0.001},
     "qwen2.5-vl":  {"enc": 0.114, "arb": 0.876, "grd": 0.010},

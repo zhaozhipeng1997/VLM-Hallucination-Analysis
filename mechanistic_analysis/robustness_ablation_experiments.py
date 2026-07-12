@@ -1,38 +1,35 @@
 #!/usr/bin/env python3
 """
-Paper 4 — Round 2 Revision Experiments (R1, R2, R3)
-=====================================================
-Addressing the second AAAI review's four substantive concerns:
+Robustness & Ablation Experiments
+================================
+Four experiments:
 
-  R1: Gradient attribution robustness check
+  Exp A: Gradient attribution robustness check
       → Perturb input embeddings with Gaussian noise (σ ∈ {1e-3, 5e-3, 1e-2, 5e-2})
       → Recompute head rankings, report Spearman ρ between clean and noisy ranks
-      → Directly addresses "simple dot-product is noisy, provide robustness checks"
 
-  R2: Task format control experiment
+  Exp B: Task format control experiment
       → Run both captioning prompt AND VQA prompt on SAME COCO images
       → Compute encoding/arbitration decomposition under both prompts
       → Isolates task format from image content
-      → Directly addresses "task format variance vs architecture-intrinsic failure"
 
-  R3: Single-head causal patching (L30 H31)
+  Exp C: Single-head causal patching (L30 H31)
       → Replace only L30 H31 activation with counterfactual version during
         factual forward pass (or vice versa)
       → Measure per-token Δ_t and arbitration failure rate change
-      → Directly addresses "targeted patching of only top-ranked heads"
 
 Usage:
-    # R1 (requires model, ~5 min per model):
-    python mechanistic_analysis/paper4_r2_experiments.py --experiment r1 --model llava-1.5 --num_images 50
+    # Exp A (requires model, ~5 min per model):
+    python mechanistic_analysis/robustness_ablation_experiments.py --experiment r1 --model llava-1.5 --num_images 50
 
-    # R2 (requires model, ~30 min per model):
-    python mechanistic_analysis/paper4_r2_experiments.py --experiment r2 --model llava-1.5 --num_images 50
+    # Exp B (requires model, ~30 min per model):
+    python mechanistic_analysis/robustness_ablation_experiments.py --experiment r2 --model llava-1.5 --num_images 50
 
-    # R3 (requires model, ~30 min per model):
-    python mechanistic_analysis/paper4_r2_experiments.py --experiment r3 --model llava-1.5 --num_images 50
+    # Exp C (requires model, ~30 min per model):
+    python mechanistic_analysis/robustness_ablation_experiments.py --experiment r3 --model llava-1.5 --num_images 50
 
     # All three:
-    python mechanistic_analysis/paper4_r2_experiments.py --experiment all --model llava-1.5
+    python mechanistic_analysis/robustness_ablation_experiments.py --experiment all --model llava-1.5
 """
 
 import argparse, json, os, sys
@@ -63,7 +60,7 @@ from config import (
 from mechanistic_analysis.run_attribution import load_model_and_generator
 from mechanistic_analysis.dynamic_circuit import install_all_head_hooks
 
-OUTPUT_DIR = REPO_ROOT / "results" / "paper4_r2"
+OUTPUT_DIR = REPO_ROOT / "results" / "robustness_ablation"
 FIG_DIR = OUTPUT_DIR / "figures"
 TABLE_DIR = OUTPUT_DIR / "tables"
 
@@ -97,7 +94,7 @@ def get_image_files(n: int) -> List[str]:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-#  R1: GRADIENT ATTRIBUTION ROBUSTNESS CHECK
+#  Exp A: GRADIENT ATTRIBUTION ROBUSTNESS CHECK
 # ──────────────────────────────────────────────────────────────────────────────
 
 def add_embedding_noise(model, sigma: float):
@@ -244,7 +241,7 @@ def run_r1_robustness(model_key: str, num_images: int = 50):
     nl, nh = cfg["num_layers"], cfg["num_heads"]
 
     print(f"\n{'='*70}")
-    print(f"  R1: Attribution Robustness — {cfg['name']}")
+    print(f"  Exp A: Attribution Robustness — {cfg['name']}")
     print(f"{'='*70}")
 
     model, processor, gen_cls, _ = load_model_and_generator(model_key)
@@ -253,7 +250,7 @@ def run_r1_robustness(model_key: str, num_images: int = 50):
     sigmas = [0.0, 1e-3, 5e-3, 1e-2, 5e-2]
     all_attrs = {s: [] for s in sigmas}
 
-    for img_path in tqdm(img_files, desc=f"  [{cfg['name']}] R1"):
+    for img_path in tqdm(img_files, desc=f"  [{cfg['name']}] Exp A"):
         prompt = "Please describe this image in detail."
         for sigma in sigmas:
             try:
@@ -327,7 +324,7 @@ def run_r1_robustness(model_key: str, num_images: int = 50):
     ax.set_xscale('log')
     ax.set_xlabel('Embedding noise σ', fontsize=12)
     ax.set_ylabel('Similarity to clean ranking', fontsize=12)
-    ax.set_title(f'R1: Attribution Robustness — {cfg["name"]}', fontsize=14)
+    ax.set_title(f'Exp A: Attribution Robustness — {cfg["name"]}', fontsize=14)
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -340,7 +337,7 @@ def run_r1_robustness(model_key: str, num_images: int = 50):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-#  R2: TASK FORMAT CONTROL (same images, two prompts)
+#  Exp B: TASK FORMAT CONTROL (same images, two prompts)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def run_r2_task_control(model_key: str, num_images: int = 50):
@@ -358,7 +355,7 @@ def run_r2_task_control(model_key: str, num_images: int = 50):
     nl, nh = cfg["num_layers"], cfg["num_heads"]
 
     print(f"\n{'='*70}")
-    print(f"  R2: Task Format Control — {cfg['name']}")
+    print(f"  Exp B: Task Format Control — {cfg['name']}")
     print(f"  Same {num_images} COCO images, captioning vs VQA prompt")
     print(f"{'='*70}")
 
@@ -419,7 +416,7 @@ def run_r2_task_control(model_key: str, num_images: int = 50):
         ax.set_xticks(x)
         ax.set_xticklabels(['Encoding\nFailure', 'Arbitration\nFailure', 'Grounded'], fontsize=11)
         ax.set_ylabel('Token fraction (%)', fontsize=12)
-        ax.set_title(f'R2: Task Format Control — {cfg["name"]}\nSame images, different prompts',
+        ax.set_title(f'Exp B: Task Format Control — {cfg["name"]}\nSame images, different prompts',
                      fontsize=13)
         ax.legend(fontsize=10)
         ax.grid(True, alpha=0.3, axis='y')
@@ -438,7 +435,7 @@ def run_r2_task_control(model_key: str, num_images: int = 50):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-#  R3: SINGLE-HEAD CAUSAL PATCHING (L30 H31)
+#  Exp C: SINGLE-HEAD CAUSAL PATCHING (L30 H31)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def run_r3_single_head_patching(model_key: str, num_images: int = 50):
@@ -457,7 +454,7 @@ def run_r3_single_head_patching(model_key: str, num_images: int = 50):
     nl, nh = cfg["num_layers"], cfg["num_heads"]
 
     print(f"\n{'='*70}")
-    print(f"  R3: Single-Head Causal Patching — {cfg['name']}")
+    print(f"  Exp C: Single-Head Causal Patching — {cfg['name']}")
     print(f"{'='*70}")
 
     from mechanistic_analysis.run_attribution import load_model_and_generator
@@ -481,7 +478,7 @@ def run_r3_single_head_patching(model_key: str, num_images: int = 50):
     per_token_effects = []  # list of Δ_t changes per token
     per_image_effects = []  # mean Δ_t change per image
 
-    for img_path in tqdm(img_files, desc=f"  [{cfg['name']}] R3 patching"):
+    for img_path in tqdm(img_files, desc=f"  [{cfg['name']}] Exp C patching"):
         try:
             pil_img = PILImage.open(img_path).convert("RGB")
             prompt = "Please describe this image in detail."
@@ -512,7 +509,7 @@ def run_r3_single_head_patching(model_key: str, num_images: int = 50):
                 inputs_c = processor(text=text, return_tensors="pt").to(model.device)
             else:
                 # Tokenizer-only path — skip for now, requires InternVL/MiniCPM loading
-                print("  [SKIP] tokenizer-only model not supported in R3 yet")
+                print("  [SKIP] tokenizer-only model not supported in Exp C yet")
                 continue
 
             # Find the o_proj module for layer tl
@@ -625,7 +622,7 @@ def run_r3_single_head_patching(model_key: str, num_images: int = 50):
     if per_image_effects:
         mu = np.mean(per_image_effects)
         sigma = np.std(per_image_effects)
-        print(f"\n  R3 Results for {cfg['name']} (L{tl} H{th}):")
+        print(f"\n  Exp C Results for {cfg['name']} (L{tl} H{th}):")
         print(f"    Mean KL(patched || factual): {mu:.6f} ± {sigma:.6f}")
         print(f"    N images: {len(per_image_effects)}")
 
@@ -643,7 +640,7 @@ def run_r3_single_head_patching(model_key: str, num_images: int = 50):
         ax.axvline(mu, color='black', ls='--', lw=1.5, label=f'Mean = {mu:.6f}')
         ax.set_xlabel('KL divergence (patched || factual)', fontsize=12)
         ax.set_ylabel('Images', fontsize=12)
-        ax.set_title(f'R3: Single-Head Causal Patching — {cfg["name"]} L{tl} H{th}\n'
+        ax.set_title(f'Exp C: Single-Head Causal Patching — {cfg["name"]} L{tl} H{th}\n'
                      f'Effect of replacing ONE head on logit distribution',
                      fontsize=13)
         ax.legend(fontsize=10)
@@ -664,7 +661,7 @@ def run_r3_single_head_patching(model_key: str, num_images: int = 50):
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Paper 4 Round 2 Revision (R1/R2/R3)")
+    parser = argparse.ArgumentParser(description="Robustness & Ablation Experiments")
     parser.add_argument("--experiment", type=str, default="r1",
                         choices=["r1", "r2", "r3", "all"])
     parser.add_argument("--model", type=str, default="llava-1.5",
@@ -674,7 +671,7 @@ def main():
     args = parser.parse_args()
 
     ensure_dirs()
-    print(f"Paper4 R2 Revision | experiment={args.experiment} | model={args.model}")
+    print(f"Robustness & Ablation | experiment={args.experiment} | model={args.model}")
     print(f"Output: {OUTPUT_DIR}")
 
     if args.experiment in ("r1", "all"):

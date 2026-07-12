@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Mechanistic Analysis — Paper-Quality Visualization
-=========================================================
-Generates figures for all three novel analyses:
+Mechanistic Analysis — Visualization
+=====================================
+Generates figures for all analyses:
 
 Fig 1 — Dynamic Circuit Evolution:
   Heatmap of per-head Δ_t contribution over decoding steps,

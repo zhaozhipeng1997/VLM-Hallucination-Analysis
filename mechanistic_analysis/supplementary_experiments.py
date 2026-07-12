@@ -1,34 +1,34 @@
 #!/usr/bin/env python3
 """
-Paper 4 Revision Experiments — P0/P1/P2
-========================================
-Three reviewer-requested analyses addressing the AAAI review's "Cons" and
-"Criteria for score increase".
+Supplementary Experiments
+===================================
+Three supplementary analyses: threshold sensitivity, per-sample breakdown, and
+cross-model comparison.
 
-  P0: tau_enc / tau_arb threshold sensitivity analysis
+  Exp A: tau_enc / tau_arb threshold sensitivity analysis
       → Sweep both thresholds as ABSOLUTE values across encoding/arbitration space
       → Generates 1D sensitivity curves and 2D heatmap grid
 
-  P1: Additional task evaluation (VQA)
+  Exp B: Additional task evaluation (VQA)
       → Run encoding-vs-arbitration decomposition on VQAv2 validation
       → Compare failure distributions vs COCO captioning
 
-  P2: Single-head deep analysis (L30 H31 in LLaVA, etc.)
+  Exp C: Single-head deep analysis (L30 H31 in LLaVA, etc.)
       → Token-type attribution segmentation (content vs function words)
       → Head rank within layer, share of total attribution
 
 Usage:
-    # P0 only (fast, no GPU/model needed):
-    python mechanistic_analysis/paper4_revision_experiments.py --experiment p0
+    # Exp A (fast, no GPU/model needed):
+    python mechanistic_analysis/supplementary_experiments.py --experiment p0
 
-    # P1 (needs GPU + model):
-    python mechanistic_analysis/paper4_revision_experiments.py --experiment p1 --model llava-1.5
+    # Exp B (needs GPU + model):
+    python mechanistic_analysis/supplementary_experiments.py --experiment p1 --model llava-1.5
 
-    # P2 only (fast, uses existing npz data):
-    python mechanistic_analysis/paper4_revision_experiments.py --experiment p2
+    # Exp C (fast, uses existing npz data):
+    python mechanistic_analysis/supplementary_experiments.py --experiment p2
 
     # All three:
-    python mechanistic_analysis/paper4_revision_experiments.py --experiment all --model llava-1.5
+    python mechanistic_analysis/supplementary_experiments.py --experiment all --model llava-1.5
 """
 
 import argparse, json, os, sys
@@ -47,7 +47,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'sans-serif'
 plt.rcParams['mathtext.fontset'] = 'stix'
 
-OUTPUT_DIR = REPO_ROOT / "results" / "paper4_revision"
+OUTPUT_DIR = REPO_ROOT / "results" / "supplementary"
 ATTRIBUTION_DIR = REPO_ROOT / "results" / "attribution_v2"
 FIG_DIR = OUTPUT_DIR / "figures"
 TABLE_DIR = OUTPUT_DIR / "tables"
@@ -106,7 +106,7 @@ def token_is_content(t: str) -> bool:
 
 
 # =============================================================================
-#  P0: tau_enc / tau_arb THRESHOLD SENSITIVITY
+#  Exp A: tau_enc / tau_arb THRESHOLD SENSITIVITY
 # =============================================================================
 
 def run_p0():
@@ -115,7 +115,7 @@ def run_p0():
     models = ["llava-1.5", "qwen2.5-vl", "internvl3.5"]
 
     print("=" * 70)
-    print("  P0: tau_enc / tau_arb SENSITIVITY (absolute thresholds)")
+    print("  Exp A: tau_enc / tau_arb SENSITIVITY (absolute thresholds)")
     print("=" * 70)
 
     all_res = {}
@@ -261,7 +261,7 @@ def run_p0():
         ta_g = np.array(res["grid_ta"])
         im = ax.pcolormesh(te_g, ta_g, arb_grid.T, cmap='RdYlBu_r',
                             shading='auto', vmin=0, vmax=max(arb_grid.max(), 1))
-        ax.plot(res["enc_30"], res["arb_50"], 'k*', ms=15, label='Paper default')
+        ax.plot(res["enc_30"], res["arb_50"], 'k*', ms=15, label='Default threshold')
         ax.set_xlabel('tau_enc (enc strength)', fontsize=11)
         ax.set_ylabel('tau_arb (arb ratio)', fontsize=11)
         ax.set_title(f'{MODELS[mk]["name"]}\nArbitration failure rate (%)', fontsize=12)
@@ -279,7 +279,7 @@ def run_p0():
         r"\centering",
         r"\caption{Sensitivity of arbitration failure rate to threshold choices. "
         r"$\tau_{\text{enc}}$ and $\tau_{\text{arb}}$ swept in absolute units. "
-        r"Paper's per-run thresholding (30th percentile, median) approximately "
+        r"Per-run relative thresholding (30th percentile, median) approximately "
         r"corresponds to the \textbf{bold} entries. The small "
         r"$\Delta$ column shows arbitration failure rate is stable across a wide "
         r"threshold range.}",
@@ -323,7 +323,7 @@ def run_p0():
 
 
 # =============================================================================
-#  P1: VQA EVALUATION
+#  Exp B: VQA EVALUATION
 # =============================================================================
 
 def run_p1(model_key: str, num_samples: int = 100):
@@ -337,7 +337,7 @@ def run_p1(model_key: str, num_samples: int = 100):
 
     cfg = MODELS[model_key]
     print(f"\n{'='*70}")
-    print(f"  P1: VQA Encoding/Arbitration — {cfg['name']}")
+    print(f"  Exp B: VQA Encoding/Arbitration — {cfg['name']}")
     print(f"{'='*70}")
 
     model, processor, gen_cls, _ = load_model_and_generator(model_key)
@@ -347,7 +347,7 @@ def run_p1(model_key: str, num_samples: int = 100):
     from tqdm import tqdm
     from PIL import Image
 
-    vqa_path = Path("/home/zzp/nas/vqav2/v2_OpenEnded_mscoco_val2014_questions.json")
+    vqa_path = Path(os.getenv("DATA_ROOT", ".")) / "vqav2/v2_OpenEnded_mscoco_val2014_questions.json"
     qa_samples = []
 
     if vqa_path.exists():
@@ -458,7 +458,7 @@ def run_p1(model_key: str, num_samples: int = 100):
     ax.set_title(f'{cfg["name"]} - Task Compare', fontsize=13, fontweight='bold')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3, axis='y')
-    fig.suptitle('P1: VQA vs COCO Captioning', fontsize=15, y=1.02)
+    fig.suptitle('Exp B: VQA vs COCO Captioning', fontsize=15, y=1.02)
     fig.tight_layout()
     fig.savefig(FIG_DIR / f"p1_vqa_{model_key}.pdf", dpi=150, bbox_inches='tight')
     plt.close(fig)
@@ -468,7 +468,7 @@ def run_p1(model_key: str, num_samples: int = 100):
 
 
 # =============================================================================
-#  P2: SINGLE-HEAD DEEP ANALYSIS
+#  Exp C: SINGLE-HEAD DEEP ANALYSIS
 # =============================================================================
 
 def run_p2():
@@ -492,7 +492,7 @@ def run_p2():
         sum_p = ATTRIBUTION_DIR / mk / "dynamic" / "dynamic_circuit_summary.json"
 
         if not npz_p.exists():
-            print(f"  [{cfg['name']}] No dynamic data, skip P2")
+            print(f"  [{cfg['name']}] No dynamic data, skip Exp C")
             continue
 
         data = np.load(npz_p)
@@ -510,7 +510,7 @@ def run_p2():
             top = []
 
         print(f"\n{'='*70}")
-        print(f"  P2: {cfg['name']} Top Head L{tl} H{th} (score={ts:.4f})")
+        print(f"  Exp C: {cfg['name']} Top Head L{tl} H{th} (score={ts:.4f})")
         print(f"{'='*70}")
 
         # ── Head rank within its own layer ──
@@ -620,7 +620,7 @@ def run_p2():
             )
         ax.set_title(f'Top-20 Heads: Layer Regime Distribution', fontsize=12)
 
-        fig.suptitle(f'P2: {cfg["name"]} — Top Head L{tl} H{th} Analysis', fontsize=15, y=1.02)
+        fig.suptitle(f'Exp C: {cfg["name"]} — Top Head L{tl} H{th} Analysis', fontsize=15, y=1.02)
         fig.tight_layout()
         fig.savefig(FIG_DIR / f"p2_single_head_{mk}.pdf", dpi=150, bbox_inches='tight')
         plt.close(fig)
@@ -661,7 +661,7 @@ def run_p2():
         ax.legend(fontsize=10)
         ax.grid(True, alpha=0.3, axis='y')
 
-        fig.suptitle('P2: Cross-Model Top-Head Comparison', fontsize=15, y=1.02)
+        fig.suptitle('Exp C: Cross-Model Top-Head Comparison', fontsize=15, y=1.02)
         fig.tight_layout()
         fig.savefig(FIG_DIR / "p2_cross_model.pdf", dpi=150, bbox_inches='tight')
         plt.close(fig)
@@ -718,7 +718,7 @@ def run_p2():
 # =============================================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="Paper 4 Revision P0/P1/P2")
+    parser = argparse.ArgumentParser(description="Supplementary Experiments")
     parser.add_argument("--experiment", type=str, default="p0",
                         choices=["p0", "p1", "p2", "all"])
     parser.add_argument("--model", type=str, default="llava-1.5",
@@ -727,7 +727,7 @@ def main():
     args = parser.parse_args()
 
     ensure_dirs()
-    print(f"Paper4 Revision | experiment={args.experiment} | model={args.model}")
+    print(f"Supplementary Experiments | experiment={args.experiment} | model={args.model}")
     print(f"Output: {OUTPUT_DIR}")
 
     if args.experiment in ("p0", "all"):

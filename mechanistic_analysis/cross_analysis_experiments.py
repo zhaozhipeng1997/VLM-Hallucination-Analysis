@@ -1,44 +1,40 @@
 #!/usr/bin/env python3
 """
-Paper 4 — Round 3 Revision Experiments (E1, E2, E3, E4)
-========================================================
-Four supplementary experiments addressing the AAAI reviewer's questions and cons:
+Cross-Analysis Experiments
+==========================
+Four analysis experiments:
 
-  E1: Fine-grained top-5 head ablation (encoding vs arbitration)
+  Exp A: Fine-grained top-5 head ablation (encoding vs arbitration)
       → Patch top-5 encoding heads vs top-5 arbitration heads separately
       → Compare CV, effect sizes, Levene's test between the two groups
-      → Directly addresses "zeroing entire pathways is very coarse" (Question 2)
 
-  E2: Cross-dataset encoding-arbitration decomposition
+  Exp B: Cross-dataset encoding-arbitration decomposition
       → Run encoding_vs_arbitration_decomposition on HallusionBench, MMHal, POPE
       → Compare failure profiles across datasets with different output formats
-      → Directly addresses "stability across datasets" (Question 3)
 
-  E3: Universal head zero-shot cross-architecture intervention
+  Exp C: Universal head zero-shot cross-architecture intervention
       → Steer attention weights of cross-architecturally universal heads
       → Measure CHAIR reduction without per-model calibration
-      → Directly addresses "can universal heads be used for intervention" (Question 4)
 
-  E4: Oracle-based absolute encoding threshold calibration
+  Exp D: Oracle-based absolute encoding threshold calibration
       → Use CHAIR ground-truth labels to calibrate absolute τ_enc threshold
       → Compare oracle-calibrated threshold vs per-image 30th percentile
-      → Directly addresses "relative threshold introduces data-dependency" (Cons #1)
 
 Usage:
-    # E1 (requires GPU + model, ~60 min per model):
-    python mechanistic_analysis/paper4_r3_experiments.py --experiment e1 --model llava-1.5 --num_images 50
+    # Exp A (requires GPU + model, ~60 min per model):
+    python mechanistic_analysis/cross_analysis_experiments.py --experiment e1 --model llava-1.5 --num_images 50
 
-    # E2 (requires GPU + model, ~90 min per model, needs benchmark data):
-    python mechanistic_analysis/paper4_r3_experiments.py --experiment e2 --model llava-1.5
+    # Exp B (requires GPU + model, ~90 min per model, needs benchmark data):
+    python mechanistic_analysis/cross_analysis_experiments.py --experiment e2 --model llava-1.5
 
-    # E3 (requires GPU + model, ~30 min per model):
-    python mechanistic_analysis/paper4_r3_experiments.py --experiment e3 --model llava-1.5 --num_images 50
+    # Exp C (requires GPU + model, ~30 min per model):
+    python mechanistic_analysis/cross_analysis_experiments.py --experiment e3 --model llava-1.5 --num_images 50
 
-    # E4 (no GPU needed, uses cached data):
-    python mechanistic_analysis/paper4_r3_experiments.py --experiment e4 --model llava-1.5
+    # Exp D (no GPU needed, uses cached data):
+    python mechanistic_analysis/cross_analysis_experiments.py --experiment e4 --model llava-1.5
 
     # All experiments on one model:
-    python mechanistic_analysis/paper4_r3_experiments.py --experiment all --model llava-1.5
+    python mechanistic_analysis/cross_analysis_experiments.py --experiment all --model llava-1.5
 """
 
 import argparse, json, os, sys
@@ -75,7 +71,7 @@ from mechanistic_analysis.dynamic_circuit import (
     encoding_vs_arbitration_decomposition,
 )
 
-OUTPUT_DIR = REPO_ROOT / "results" / "paper4_r3"
+OUTPUT_DIR = REPO_ROOT / "results" / "cross_analysis"
 FIG_DIR = OUTPUT_DIR / "figures"
 TABLE_DIR = OUTPUT_DIR / "tables"
 
@@ -117,7 +113,7 @@ def load_cached_top_heads(model_key: str) -> Dict:
     (top-20 heads are usually L13-L31), we cannot use a rigid L/4 cutoff.
     Instead, we sort top heads by layer index and split at the median layer
     among the top-20: bottom half → encoding regime, top half → arbitration regime.
-    This reflects the paper's own regime analysis: mid-layer heads perform
+    This reflects the regime analysis: mid-layer heads perform
     encoding-finalization, upper-layer heads perform arbitration.
     """
     sum_path = (REPO_ROOT / "results" / "attribution_v2" / model_key /
@@ -166,7 +162,7 @@ def load_cross_arch_heads() -> Dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  E1: FINE-GRAINED TOP-5 ENCODING vs ARBITRATION HEAD ABLATION
+#  Exp A: FINE-GRAINED TOP-5 ENCODING vs ARBITRATION HEAD ABLATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def patch_specific_heads(model, target_heads, head_dim, patch_source, layer_to_module, num_heads):
@@ -260,7 +256,7 @@ def capture_all_head_outputs(model, inputs, full_ids, nl, nh, hd):
 
 def run_e1_fine_ablation(model_key: str, num_images: int = 50):
     """
-    E1: Fine-grained top-5 encoding vs arbitration head ablation.
+    Exp A: Fine-grained top-5 encoding vs arbitration head ablation.
 
     For each image:
     1. Generate caption, compute baseline Δ_t per token
@@ -274,7 +270,7 @@ def run_e1_fine_ablation(model_key: str, num_images: int = 50):
     nl, nh = cfg["num_layers"], cfg["num_heads"]
 
     print(f"\n{'='*70}")
-    print(f"  E1: Fine-Grained Head Ablation — {cfg['name']}")
+    print(f"  Exp A: Fine-Grained Head Ablation — {cfg['name']}")
     print(f"{'='*70}")
 
     # Load head rankings
@@ -298,7 +294,7 @@ def run_e1_fine_ablation(model_key: str, num_images: int = 50):
     enc_img_effects = []  # per-image means
     arb_img_effects = []  # per-image means
 
-    for img_path in tqdm(img_files, desc=f"  [{cfg['name']}] E1 ablation"):
+    for img_path in tqdm(img_files, desc=f"  [{cfg['name']}] Exp A ablation"):
         try:
             pil_img = PILImage.open(img_path).convert("RGB")
             prompt = "Please describe this image in detail."
@@ -328,7 +324,7 @@ def run_e1_fine_ablation(model_key: str, num_images: int = 50):
                 inputs_f = processor(text=text, images=pil_img, return_tensors="pt").to(model.device)
                 inputs_c = processor(text=text, return_tensors="pt").to(model.device)
             else:
-                print("  [SKIP] tokenizer-only model — E1 requires image_processor")
+                print("  [SKIP] tokenizer-only model — Exp A requires image_processor")
                 continue
 
             # --- Capture factual and counterfactual activations ---
@@ -483,7 +479,7 @@ def run_e1_fine_ablation(model_key: str, num_images: int = 50):
     }
 
     print(f"\n  {'='*60}")
-    print(f"  E1 Results — {cfg['name']}")
+    print(f"  Exp A Results — {cfg['name']}")
     print(f"  Encoding ablation (top-5 heads): mean={enc_mean:.4f}  std={enc_std:.4f}  CV={enc_cv:.3f}")
     print(f"  Arbitration ablation (top-5 heads): mean={arb_mean:.4f}  std={arb_std:.4f}  CV={arb_cv:.3f}")
     print(f"  CV ratio (arb/enc): {arb_cv/(enc_cv+1e-8):.1f}×")
@@ -524,7 +520,7 @@ def run_e1_fine_ablation(model_key: str, num_images: int = 50):
     ax.set_title(f'Per-image comparison (paired t p={t_p:.3f})', fontsize=12)
     ax.grid(True, alpha=0.3)
 
-    fig.suptitle(f'E1: Fine-Grained Head Ablation — {cfg["name"]}', fontsize=14, fontweight='bold')
+    fig.suptitle(f'Exp A: Fine-Grained Head Ablation — {cfg["name"]}', fontsize=14, fontweight='bold')
     fig.tight_layout()
     fig.savefig(FIG_DIR / f"e1_fine_ablation_{model_key}.pdf", dpi=150, bbox_inches='tight')
     plt.close(fig)
@@ -534,12 +530,12 @@ def run_e1_fine_ablation(model_key: str, num_images: int = 50):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  E2: CROSS-DATASET ENCODING-ARBITRATION DECOMPOSITION
+#  Exp B: CROSS-DATASET ENCODING-ARBITRATION DECOMPOSITION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def run_e2_cross_dataset(model_key: str):
     """
-    E2: Encoding-arbitration decomposition across multiple benchmarks.
+    Exp B: Encoding-arbitration decomposition across multiple benchmarks.
 
     Runs on:
     - COCO captioning (cached baseline)
@@ -553,7 +549,7 @@ def run_e2_cross_dataset(model_key: str):
     cfg = MODELS[model_key]
 
     print(f"\n{'='*70}")
-    print(f"  E2: Cross-Dataset Encoding-Arbitration — {cfg['name']}")
+    print(f"  Exp B: Cross-Dataset Encoding-Arbitration — {cfg['name']}")
     print(f"{'='*70}")
 
     # --- Load cached COCO results ---
@@ -751,7 +747,7 @@ def run_e2_cross_dataset(model_key: str):
         ax.set_xticks(x)
         ax.set_xticklabels(all_names, rotation=15, ha='right', fontsize=9)
         ax.set_ylabel('Token fraction (%)', fontsize=12)
-        ax.set_title(f'E2: Cross-Dataset Encoding-Arbitration — {cfg["name"]}', fontsize=14, fontweight='bold')
+        ax.set_title(f'Exp B: Cross-Dataset Encoding-Arbitration — {cfg["name"]}', fontsize=14, fontweight='bold')
         ax.legend(fontsize=10, loc='upper right')
         ax.grid(True, alpha=0.3, axis='y')
         formats = ['free-form'] + [d.get('format', '?') for d in datasets.values()]
@@ -766,12 +762,12 @@ def run_e2_cross_dataset(model_key: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  E3: UNIVERSAL HEAD ZERO-SHOT CROSS-ARCHITECTURE INTERVENTION
+#  Exp C: UNIVERSAL HEAD ZERO-SHOT CROSS-ARCHITECTURE INTERVENTION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def run_e3_universal_intervention(model_key: str, num_images: int = 50):
     """
-    E3: Zero-shot intervention using cross-architecture universal heads.
+    Exp C: Zero-shot intervention using cross-architecture universal heads.
 
     1. Load universal heads from cross_architecture.json
     2. Run two decoding passes on same images:
@@ -785,7 +781,7 @@ def run_e3_universal_intervention(model_key: str, num_images: int = 50):
     cfg = MODELS[model_key]
 
     print(f"\n{'='*70}")
-    print(f"  E3: Universal-Head Zero-Shot Intervention — {cfg['name']}")
+    print(f"  Exp C: Universal-Head Zero-Shot Intervention — {cfg['name']}")
     print(f"{'='*70}")
 
     # Load universal heads
@@ -796,7 +792,7 @@ def run_e3_universal_intervention(model_key: str, num_images: int = 50):
 
     universal_heads = cross_data.get('universal_heads', [])
     if not universal_heads:
-        # Fallback: use the heads from Table 7 in the paper
+        # Fallback: use the default universal heads
         universal_heads = [
             {"layer_fraction": 0.025, "head": 18},
             {"layer_fraction": 0.025, "head": 14},
@@ -1026,7 +1022,7 @@ def run_e3_universal_intervention(model_key: str, num_images: int = 50):
 
         ax.set_xlabel('Attention scaling factor α', fontsize=12)
         ax.set_ylabel('CHAIRs (%)', fontsize=12)
-        ax.set_title(f'E3: Zero-Shot Universal Head Intervention — {cfg["name"]}',
+        ax.set_title(f'Exp C: Zero-Shot Universal Head Intervention — {cfg["name"]}',
                     fontsize=14, fontweight='bold')
         ax.legend(fontsize=10)
         ax.grid(True, alpha=0.3)
@@ -1040,12 +1036,12 @@ def run_e3_universal_intervention(model_key: str, num_images: int = 50):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  E4: ORACLE-BASED ABSOLUTE ENCODING THRESHOLD CALIBRATION
+#  Exp D: ORACLE-BASED ABSOLUTE ENCODING THRESHOLD CALIBRATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def run_e4_oracle_threshold(model_key: str):
     """
-    E4: Oracle-based absolute encoding threshold calibration.
+    Exp D: Oracle-based absolute encoding threshold calibration.
 
     Strategy:
     1. Use the natural clustering of encoding_strength values:
@@ -1070,7 +1066,7 @@ def run_e4_oracle_threshold(model_key: str):
     cfg = MODELS[model_key]
 
     print(f"\n{'='*70}")
-    print(f"  E4: Oracle-Based Threshold Calibration — {cfg['name']}")
+    print(f"  Exp D: Oracle-Based Threshold Calibration — {cfg['name']}")
     print(f"{'='*70}")
 
     ea_dir = REPO_ROOT / "results" / "attribution_v2" / model_key / "encoding_arbitration"
@@ -1198,20 +1194,17 @@ def run_e4_oracle_threshold(model_key: str):
         # Relative: encoding_strength > tau_relative → encoding failure?
         # We need to determine the correct direction for "stronger signal = more info lost"
         # The data says: encoding_failure tokens have LOWER encoding_strength
-        # So for relative threshold: this depends on the original paper's convention
-        # The paper uses: token > tau_enc → encoding failure
-        # Let's check: which direction matches the paper's 13.9% rate?
+        # Determine direction: encoding_strength > tau_enc → encoding failure?
         # For LLaVA: mean_enc_strength of enc_fail is 0.866, others is 1.187
         # So encoding_strength < tau → encoding failure
 
-        # The paper's convention says encoding_strength HIGH → encoding failure?
-        # Actually the original code uses: encoding_strength > tau_enc → stronger signal = encoding_failure
+        # Check: encoding_strength > tau_enc → stronger signal = encoding_failure
         # Let me compute both and see which matches
 
-        # Actually the paper says: tokens where encoding_strength > per-image 30th percentile
+        # Convention: tokens where encoding_strength > per-image 30th percentile
         # are classified as encoding_failure candidates (plus other conditions).
         # BUT the data shows encoding_failure tokens have LOWER encoding_strength.
-        # This suggests the paper's pipeline uses a different derived feature,
+        # This suggests the pipeline uses a different derived feature,
         # not raw encoding_strength. Or the convention is reversed.
 
         # For the calibration comparison, we just compare:
@@ -1266,7 +1259,7 @@ def run_e4_oracle_threshold(model_key: str):
         "ground_truth": {
             "encoding_failure_rate_pct": float(gt_enc_rate * 100),
         },
-        "original_paper": {
+        "reference_baseline": {
             "encoding_failure_rate": summary.get('mean_encoding_failure_rate', 0) * 100,
             "arbitration_failure_rate": summary.get('mean_arbitration_failure_rate', 0) * 100,
             "grounded_rate": summary.get('mean_grounded_rate', 0) * 100,
@@ -1293,14 +1286,14 @@ def run_e4_oracle_threshold(model_key: str):
     }
 
     print(f"\n  {'='*60}")
-    print(f"  E4 Results — {cfg['name']}")
+    print(f"  Exp D Results — {cfg['name']}")
     print(f"  Oracle τ (absolute): {tau_oracle:.4f} ({best_direction}), "
           f"enc rate: {oracle_enc_rate_full*100:.1f}%")
     print(f"  Relative τ (mean across images): {np.mean(per_img_rel_taus):.4f}, "
           f"enc rate: {relative_enc_rate*100:.1f}%")
     print(f"  Ground truth enc rate: {gt_enc_rate*100:.1f}%")
     if summary:
-        print(f"  Paper reported enc: {summary.get('mean_encoding_failure_rate',0)*100:.1f}%")
+        print(f"  Reported enc: {summary.get('mean_encoding_failure_rate',0)*100:.1f}%")
     print(f"  Δ (oracle vs relative): {delta_pp:.1f} pp")
     print(f"  Calibration BA: {best_score:.3f}, Validation BA: {val_bal_acc:.3f}")
 
@@ -1357,7 +1350,7 @@ def run_e4_oracle_threshold(model_key: str):
 
     # Right: bar comparison
     ax = axes[2]
-    methods = ['Paper', 'Oracle\n(absolute)', 'Ground truth']
+    methods = ['Reported', 'Oracle\n(absolute)', 'Ground truth']
     enc_rates_pct = [
         summary.get('mean_encoding_failure_rate', 0) * 100,
         oracle_enc_rate_full * 100,
@@ -1375,7 +1368,7 @@ def run_e4_oracle_threshold(model_key: str):
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
                 f'{val:.1f}%', ha='center', fontsize=11, fontweight='bold')
 
-    fig.suptitle(f'E4: Oracle-Based Threshold Calibration — {cfg["name"]}',
+    fig.suptitle(f'Exp D: Oracle-Based Threshold Calibration — {cfg["name"]}',
                 fontsize=14, fontweight='bold')
     fig.tight_layout()
     fig.savefig(FIG_DIR / f"e4_oracle_threshold_{model_key}.pdf", dpi=150, bbox_inches='tight')
@@ -1390,13 +1383,13 @@ def run_e4_oracle_threshold(model_key: str):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def main():
-    parser = argparse.ArgumentParser(description="Paper 4 Round 3 Experiments")
+    parser = argparse.ArgumentParser(description="Cross-Analysis Experiments")
     parser.add_argument('--experiment', choices=['e1', 'e2', 'e3', 'e4', 'all'],
                         default='all', help="Which experiment to run")
     parser.add_argument('--model', choices=['llava-1.5', 'qwen2.5-vl', 'internvl3.5', 'all'],
                         default='llava-1.5', help="Which model to run on")
     parser.add_argument('--num_images', type=int, default=50,
-                       help="Number of images to use (E1, E3 only)")
+                       help="Number of images to use (Exp A, Exp C only)")
 
     args = parser.parse_args()
     ensure_dirs()

@@ -41,7 +41,7 @@ COCO2014/
 
 ### Multi-Task Prompts (5 levels of increasing constraint)
 
-Used in the paper (N = 1000 COCO images $\times$ 5 tasks = 5,000 image--task pairs):
+Used in the experiments (N = 1000 COCO images $\times$ 5 tasks = 5,000 image--task pairs):
 
 | Level | Task | Prompt Template |
 | --- | --- | --- |
@@ -168,19 +168,19 @@ The core experiment. Runs on 1,000 COCO images per model. Produces the three-way
 # LLaVA-1.5 (env-legacy)
 python mechanistic_analysis/run_attribution.py \
     --model llava-1.5 \
-    --mode encoding_arbitration \
+    --mode encoding \
     --num_samples 1000
 
 # Qwen2.5-VL (env-modern)
 python mechanistic_analysis/run_attribution.py \
     --model qwen2.5-vl \
-    --mode encoding_arbitration \
+    --mode encoding \
     --num_samples 1000
 
 # InternVL3.5 (env-modern)
 python mechanistic_analysis/run_attribution.py \
     --model internvl3.5 \
-    --mode encoding_arbitration \
+    --mode encoding \
     --num_samples 1000
 ```
 
@@ -196,7 +196,7 @@ python mechanistic_analysis/compare_attribution_methods.py \
     --top_k 20
 ```
 
-Output: `results/revision/topk_coverage/topk_coverage.json`
+Output: `results/supplementary/topk_coverage/topk_coverage.json`
 
 ### Step 3: Top-k Causal Coverage Analysis (Spearman $\rho$ = 0.531)
 
@@ -206,34 +206,32 @@ Reads the output from Step 2 and produces the coverage analysis, regime breakdow
 python mechanistic_analysis/exp1_topk_coverage.py
 ```
 
-### Step 4: Main Revision Experiments (P0--P3)
+### Step 4: Supplementary Experiments
 
-Four sub-experiments addressing fundamental evaluation concerns:
+Three sub-experiments addressing fundamental evaluation concerns:
 
 | Flag | Experiment | Description |
 | --- | --- | --- |
 | `p0` | CAPTION baseline | Encoding--arbitration on COCO captioning |
 | `p1` | VQA cross-dataset | Same decomposition on VQAv2; falls back to COCO + template questions if VQAv2 not found |
 | `p2` | Single-head attribution | Head-level importance and regime distribution |
-| `p3` | Multi-task encoding | Continuous metrics across 5 prompt types |
 
 ```bash
 # Run all
-python mechanistic_analysis/revision_experiments.py \
+python mechanistic_analysis/supplementary_experiments.py \
     --experiment all \
     --model llava-1.5 \
     --num_samples 1000
 
 # Or individually:
-python mechanistic_analysis/revision_experiments.py --experiment p0 --model llava-1.5
-python mechanistic_analysis/revision_experiments.py --experiment p1 --model llava-1.5
-python mechanistic_analysis/revision_experiments.py --experiment p2 --model llava-1.5
-python mechanistic_analysis/revision_experiments.py --experiment p3 --model llava-1.5
+python mechanistic_analysis/supplementary_experiments.py --experiment p0 --model llava-1.5
+python mechanistic_analysis/supplementary_experiments.py --experiment p1 --model llava-1.5
+python mechanistic_analysis/supplementary_experiments.py --experiment p2 --model llava-1.5
 ```
 
-### Step 5: R2 Experiments (R1--R3)
+### Step 5: Robustness & Ablation Experiments
 
-Addressing reviewer concerns about signal verification and ablation methodology:
+Signal verification and ablation methodology:
 
 | Flag | Experiment | Description |
 | --- | --- | --- |
@@ -243,13 +241,13 @@ Addressing reviewer concerns about signal verification and ablation methodology:
 
 ```bash
 # Run all
-python mechanistic_analysis/r2_experiments.py \
+python mechanistic_analysis/robustness_ablation_experiments.py \
     --experiment all \
     --model llava-1.5 \
     --num_images 500
 ```
 
-### Step 6: R3 Experiments (E1--E5)
+### Step 6: Cross-Analysis Experiments
 
 Additional experiments with fine-grained causal analysis:
 
@@ -259,11 +257,10 @@ Additional experiments with fine-grained causal analysis:
 | `e2` | Pathway boundary sensitivity | $\pm$4--6 pp shift across boundary range |
 | `e3` | Universal cross-architecture intervention | CHAIRs 2.0% $\to$ 0.0% at $\alpha$=1.2 |
 | `e4` | Oracle threshold calibration | $\tau$enc: LLaVA=0.997, Qwen=2.141, InternVL=2.703 |
-| `e5` | Counterfactual type comparison | Shuffled patches vs. zero pixel_values |
 
 ```bash
 # Run all
-python mechanistic_analysis/r3_experiments.py \
+python mechanistic_analysis/cross_analysis_experiments.py \
     --experiment all \
     --model llava-1.5 \
     --num_images 500
@@ -290,7 +287,7 @@ python mechanistic_analysis/exp2_taxonomy_intervention.py
 
 ### Step 9: Visualization
 
-Generates all paper figures and LaTeX tables from the result JSON files produced by previous steps.
+Generates all figures and LaTeX tables from the result JSON files produced by previous steps.
 
 ```bash
 python mechanistic_analysis/visualize.py --results_dir results/
@@ -317,36 +314,36 @@ results/
 │   │   └── encoding_arbitration_summary.json
 │   └── internvl3.5/encoding_arbitration/
 │       └── encoding_arbitration_summary.json
-├── revision/
+├── supplementary/
 │   ├── topk_coverage/
 │   │   └── topk_coverage.json                  # $\rho$=0.531, 89.6% coverage
 │   ├── p1_vqa/
 │   │   └── vqa_summary_*.json                  # VQA cross-dataset results
 │   └── p2_single_head.json                     # Head scores and regimes
-├── r2/
-│   └── *.json                                  # R1--R3 results
-├── r3/
+├── robustness_ablation/
+│   └── *.json                                  # robustness & ablation results
+├── cross_analysis/
 │   ├── e1_fine_ablation_*.json                 # Levene's test results
 │   ├── e3_universal_intervention_*.json        # CHAIRs reduction
 │   └── e4_oracle_threshold_*.json              # $\tau$enc calibration
-└── multi_task/
+└── multi_task_encoding/
     └── multi_task_*.json                        # 5-task continuous metrics
 ```
 
 ## Expected Reproducibility
 
-All key paper claims map to specific experiments and JSON output files:
+All key results map to specific experiments and JSON output files:
 
-| Paper Claim | Experiment | Output File |
+| Result | Experiment | Output File |
 | --- | --- | --- |
 | LLaVA: enc 14.0%, arb 85.5%, grd 0.5% | Step 1 | `attribution_v2/llava-1.5/.../encoding_arbitration_summary.json` |
 | Qwen: enc 11.4%, arb 87.6%, grd 1.0% | Step 1 | `attribution_v2/qwen2.5-vl/.../encoding_arbitration_summary.json` |
 | InternVL: enc 29.7%, arb 30.6%, grd 39.7% | Step 1 | `attribution_v2/internvl3.5/.../encoding_arbitration_summary.json` |
-| Spearman $\rho$=0.531, 89.6% coverage | Step 2--3 | `revision/topk_coverage/topk_coverage.json` |
-| Levene's F=426.1, p<0.001 | Step 6 (e1) | `r3/e1_fine_ablation_*.json` |
-| CHAIRs 2.0%$\to$0.0% at $\alpha$=1.2 | Step 6 (e3) | `r3/e3_universal_intervention_*.json` |
-| Oracle $\tau$enc calibration | Step 6 (e4) | `r3/e4_oracle_threshold_*.json` |
-| VQA cross-dataset: grd 0.5%$\to$40.5% | Step 4 (p1) | `revision/p1_vqa/vqa_summary_*.json` |
+| Spearman $\rho$=0.531, 89.6% coverage | Step 2--3 | `supplementary/topk_coverage/topk_coverage.json` |
+| Levene's F=426.1, p<0.001 | Step 6 (e1) | `cross_analysis/e1_fine_ablation_*.json` |
+| CHAIRs 2.0%$\to$0.0% at $\alpha$=1.2 | Step 6 (e3) | `cross_analysis/e3_universal_intervention_*.json` |
+| Oracle $\tau$enc calibration | Step 6 (e4) | `cross_analysis/e4_oracle_threshold_*.json` |
+| VQA cross-dataset: grd 0.5%$\to$40.5% | Step 4 (p1) | `supplementary/p1_vqa/vqa_summary_*.json` |
 
 ## License
 
